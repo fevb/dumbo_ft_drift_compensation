@@ -47,32 +47,32 @@ FTDriftCompensationParams::~FTDriftCompensationParams()
 
 }
 
-FTDriftCompensationParams::setCoefficients(const Eigen::Vector2d &coefficients)
+void FTDriftCompensationParams::setCoefficients(const Eigen::Vector2d &beta)
 {
-    m_coefficients = coefficients;
+    m_beta = beta;
 }
 
-FTDriftCompensationParams::getCoefficients()
+Eigen::Vector2d FTDriftCompensationParams::getCoefficients()
 {
-    return m_coefficients;
+    return m_beta;
 }
 
-FTDriftCompensationParams::setCalibNumSamples(const unsigned int &calib_num_samples)
+void FTDriftCompensationParams::setCalibNumSamples(const unsigned int &calib_num_samples)
 {
     m_calib_num_samples = calib_num_samples;
 }
 
-FTDriftCompensationParams::getCalibNumSamples()
+unsigned int FTDriftCompensationParams::getCalibNumSamples()
 {
     return m_calib_num_samples;
 }
 
-FTDriftCompensationParams::setCalibSamplingFreq(const double &calib_sampling_freq)
+void FTDriftCompensationParams::setCalibSamplingFreq(const double &calib_sampling_freq)
 {
     m_calib_sampling_freq = calib_sampling_freq;
 }
 
-FTDriftCompensationParams::getCalibSamplingFreq()
+double FTDriftCompensationParams::getCalibSamplingFreq()
 {
     return m_calib_sampling_freq;
 }

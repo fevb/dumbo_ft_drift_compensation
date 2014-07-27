@@ -46,7 +46,7 @@ public:
 
     virtual ~FTDriftCompensationParams();
 
-    void setCoefficients(const Eigen::Vector2d &coefficients);
+    void setCoefficients(const Eigen::Vector2d &beta);
     Eigen::Vector2d getCoefficients();
 
     void setCalibNumSamples(const unsigned int &calib_num_samples);
@@ -59,7 +59,7 @@ public:
 private:
 
     // coefficients for linear time-drift compensation
-    Eigen::Vector2d m_coefficients;
+    Eigen::Vector2d m_beta;
 
     // number of samples to take for calibrating the
     // parameters (linear coefficients) for time-drift compensation

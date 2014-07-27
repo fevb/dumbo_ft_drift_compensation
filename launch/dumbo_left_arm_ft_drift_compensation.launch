@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+
+  <node ns="left_arm_ft_sensor" name="drift_compensation" pkg="dumbo_ft_drift_compensation" cwd="node" respawn="false" output="screen">
+    <rosparam command="load" file="$(find dumbo_ft_drift_compensation)/config/left_arm_ft_drift_compensation.yaml" />
+    <remap from="/left_arm_ft_sensor/drift_compensation/ft_drift_compensated" to="/left_arm_ft_sensor/ft_drift_compensated" />
+    <remap from="/left_arm_ft_sensor/drift_compensation/ft_compensated" to="/left_arm_ft_sensor/ft_compensated" />
+  </node>
+
+</launch>

@@ -37,6 +37,7 @@
 #define FT_DRIFT_COMPENSATION_H_
 
 #include <ros/ros.h>
+#include <geometry_msgs/WrenchStamped.h>
 #include <dumbo_ft_drift_compensation/ft_drift_compensation_params.h>
 
 
@@ -47,7 +48,13 @@ public:
 
     virtual ~FTDriftCompensation();
 
+    // calculates the coefficients for linear time drift compensation
+    // of Fz given a set of force-torque measurements
+    Eigen::Vector2d calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_compensated_measurements);
 
+    //
+    void compensate(const geometry_msgs::WrenchStamped &ft_compensated,
+                    geometry_msgs::WrenchStamped &ft_drift_compensated);
 
 private:
     FTDriftCompensationParams *m_params;
