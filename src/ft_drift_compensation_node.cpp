@@ -48,7 +48,7 @@ class FTDriftCompensationNode
 public:
     ros::NodeHandle n_;
 
-    ros::Subscriber topicSub_ft_compensated_;
+    ros::Subscriber topicSub_ft_gravity_compensated_;
     ros::Publisher topicPub_ft_drift_compensated_;
 
     ros::ServiceServer calibrate_service_server_;
@@ -59,22 +59,21 @@ public:
         m_params  = new FTDriftCompensationParams();
         m_ft_drift_compensation = new FTDriftCompensation(m_params);
 
-        topicSub_ft_compensated_ = n_.subscribe("ft_compensated", 1, &FTDriftCompensationNode::topicCallback_ft_compensated, this);
+        topicSub_ft_gravity_compensated_ = n_.subscribe("ft_gravity_compensated", 1, &FTDriftCompensationNode::topicCallback_ft_gravity_compensated, this);
         topicPub_ft_drift_compensated_ = n_.advertise<geometry_msgs::WrenchStamped>("ft_drift_compensated", 1);
 
         calibrate_service_server_ = n_.advertiseService("calibrate", &FTDriftCompensationNode::calibrateService, this);
 
-        m_received_ft_compensated = false;
+        m_received_ft_gravity_compensated = false;
         m_calibrating = false;
         m_calibration_thread = NULL;
-        m_ft_drift_compensation = NULL;
     }
 
     ~FTDriftCompensationNode()
     {
         delete m_params;
         delete m_ft_drift_compensation;
-        delete m_publish_thread;
+        delete m_compensation_thread;
         delete m_calibration_thread;
     }
 
@@ -97,9 +96,9 @@ public:
         }
 
 
-        if(coefficientsXmlRpc.size()!=6)
+        if(coefficientsXmlRpc.size()!=2)
         {
-            ROS_ERROR("Invalid F/T coefficients parameter size (should be size 6), shutting down node");
+            ROS_ERROR("Invalid coefficients parameter size (should be size 2), shutting down node");
             n_.shutdown();
             return false;
         }
@@ -119,8 +118,10 @@ public:
 
         n_.param<double>("publish_rate", m_publish_rate, 650.0);
 
-        m_publish_thread = new boost::thread(boost::bind(&FTDriftCompensationNode::publishFTDriftCompensated,
+        m_compensation_thread = new boost::thread(boost::bind(&FTDriftCompensationNode::compensate,
                                                          this));
+
+        return true;
     }
 
     bool calibrateService(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
@@ -128,31 +129,34 @@ public:
         if(!m_calibrating)
         {
             m_calibrating = true;
-            m_calibration_thread = new boost::thread(boost::bind(&FTDriftCompensationNode::calibration, this));
+            m_calibration_thread = new boost::thread(boost::bind(&FTDriftCompensationNode::calibrate, this));
         }
         return true;
     }
 
-    void calibration()
+    void calibrate()
     {
         try
         {
+            ROS_INFO("Initiating FT sensor drift calibration, it will take %f minutes",
+                     m_params->getCalibNumSamples()/(m_params->getCalibSamplingFreq()*60.0*60.0));
             unsigned int i = 0;
             ros::Rate loop_rate(m_params->getCalibSamplingFreq());
-            std::vector<geometry_msgs::WrenchStamped> ft_compensated_measurements;
-            ft_compensated_measurements.resize(m_params->getCalibNumSamples());
+            std::vector<geometry_msgs::WrenchStamped> ft_gravity_compensated_measurements;
+            ft_gravity_compensated_measurements.resize(m_params->getCalibNumSamples());
 
             while(ros::ok() && i < m_params->getCalibNumSamples())
             {
-                ft_compensated_measurements[i] = m_ft_compensated;
+                ft_gravity_compensated_measurements[i] = m_ft_gravity_compensated;
                 i++;
                 loop_rate.sleep();
             }
 
-            Eigen::Vector2d beta = m_ft_drift_compensation->calibrate(ft_compensated_measurements);
+            Eigen::Vector2d beta = m_ft_drift_compensation->calibrate(ft_gravity_compensated_measurements);
             m_params->setCoefficients(beta);
 
             m_calibrating = false;
+            ROS_INFO("Finished FT sensor drift calibration");
             return;
         }
 
@@ -166,13 +170,15 @@ public:
         return;
     }
 
-    void topicCallback_ft_compensated(const geometry_msgs::WrenchStamped::ConstPtr &msg)
+    void topicCallback_ft_gravity_compensated(const geometry_msgs::WrenchStamped::ConstPtr &msg)
     {
-        m_ft_compensated = *msg;
-        m_received_ft_compensated = true;
+        m_ft_gravity_compensated_mutex.lock();
+        m_ft_gravity_compensated = *msg;
+        m_ft_gravity_compensated_mutex.unlock();
+        m_received_ft_gravity_compensated = true;
     }
 
-    void publishFTDriftCompensated()
+    void compensate()
     {
         try
         {
@@ -180,11 +186,14 @@ public:
             {
                 ros::Rate publish_rate(m_publish_rate);
 
-                if(m_received_ft_compensated && !m_calibrating)
+                if(m_received_ft_gravity_compensated && !m_calibrating)
                 {
                     geometry_msgs::WrenchStamped ft_drift_compensated;
-                    m_ft_drift_compensation->compensate(m_ft_compensated,
-                                                        ft_drift_compensated);
+
+                    m_ft_gravity_compensated_mutex.lock();
+                    m_ft_drift_compensation->compensate(m_ft_gravity_compensated, ft_drift_compensated);
+                    m_ft_gravity_compensated_mutex.unlock();
+
                     topicPub_ft_drift_compensated_.publish(ft_drift_compensated);
                 }
                 publish_rate.sleep();
@@ -205,12 +214,13 @@ private:
     FTDriftCompensationParams *m_params;
     FTDriftCompensation *m_ft_drift_compensation;
 
-    geometry_msgs::WrenchStamped m_ft_compensated;
-    bool m_received_ft_compensated;
+    geometry_msgs::WrenchStamped m_ft_gravity_compensated;
+    bool m_received_ft_gravity_compensated;
+    boost::mutex m_ft_gravity_compensated_mutex;
 
     double m_publish_rate;
 
-    boost::thread *m_publish_thread;
+    boost::thread *m_compensation_thread;
     boost::thread *m_calibration_thread;
 
     bool m_calibrating;

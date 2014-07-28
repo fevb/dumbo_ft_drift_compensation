@@ -47,18 +47,18 @@ FTDriftCompensation::~FTDriftCompensation()
 
 }
 
-Eigen::Vector2d FTDriftCompensation::calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_compensated_measurements)
+Eigen::Vector2d FTDriftCompensation::calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_gravity_compensated_measurements)
 {
-    unsigned int N = ft_compensated_measurements.size();
+    unsigned int N = ft_gravity_compensated_measurements.size();
     Eigen::MatrixXd X(N, 2);
     Eigen::MatrixXd Y(N, 1);
     Eigen::Vector2d beta;
 
     for(unsigned int i = 0; i < N; i++)
     {
-        X(i, 0) = ((ft_compensated_measurements[i].header.stamp - m_t_start).toSec())/(60.0*60.0);
+        X(i, 0) = ((ft_gravity_compensated_measurements[i].header.stamp - m_t_start).toSec())/(60.0*60.0);
         X(i, 1) = 1.0;
-        Y(i, 0) = ft_compensated_measurements[i].wrench.force.z;
+        Y(i, 0) = ft_gravity_compensated_measurements[i].wrench.force.z;
     }
 
     Eigen::MatrixXd H = X.transpose()*X;
@@ -68,11 +68,13 @@ Eigen::Vector2d FTDriftCompensation::calibrate(const std::vector<geometry_msgs::
     return beta;
 }
 
-void FTDriftCompensation::compensate(const geometry_msgs::WrenchStamped &ft_compensated,
+void FTDriftCompensation::compensate(const geometry_msgs::WrenchStamped &ft_gravity_compensated,
                                      geometry_msgs::WrenchStamped &ft_drift_compensated)
 {
+    ft_drift_compensated = ft_gravity_compensated;
+
     Eigen::Matrix<double, 1, 2> X;
-    X(0) = ft_compensated.wrench.force.z;
+    X(0) = (ft_gravity_compensated.header.stamp-m_t_start).toSec()/(60.0*60.0);
     X(1) = 1.0;
 
     double Y;
@@ -80,9 +82,7 @@ void FTDriftCompensation::compensate(const geometry_msgs::WrenchStamped &ft_comp
 
     Y = X*beta;
 
-    ft_drift_compensated = ft_compensated;
-
-    ft_drift_compensated.wrench.force.z = Y;
+    ft_drift_compensated.wrench.force.z = ft_gravity_compensated.wrench.force.z-Y;
 }
 
 
