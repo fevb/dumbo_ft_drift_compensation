@@ -107,6 +107,7 @@ public:
         {
             coefficients(i) = (double)coefficientsXmlRpc[i];
         }
+        m_params->setCoefficients(coefficients);
 
         int calib_num_samples;
         n_.param<int>("calib_num_samples", calib_num_samples, 300);
@@ -138,8 +139,8 @@ public:
     {
         try
         {
-            ROS_INFO("Initiating FT sensor drift calibration, it will take %f minutes",
-                     m_params->getCalibNumSamples()/(m_params->getCalibSamplingFreq()*60.0*60.0));
+            ROS_INFO("Starting FT sensor drift calibration, it will take %f minutes. DO NOT MOVE THE ROBOT!!!",
+                     m_params->getCalibNumSamples()/(m_params->getCalibSamplingFreq()*60.0));
             unsigned int i = 0;
             ros::Rate loop_rate(m_params->getCalibSamplingFreq());
             std::vector<geometry_msgs::WrenchStamped> ft_gravity_compensated_measurements;
@@ -157,6 +158,8 @@ public:
 
             m_calibrating = false;
             ROS_INFO("Finished FT sensor drift calibration");
+            ROS_INFO("Calculated coefficients: ");
+            std::cout << std::endl << beta << std::endl;
             return;
         }
 

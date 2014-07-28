@@ -74,8 +74,8 @@ void FTDriftCompensation::compensate(const geometry_msgs::WrenchStamped &ft_grav
     ft_drift_compensated = ft_gravity_compensated;
 
     Eigen::Matrix<double, 1, 2> X;
-    X(0) = (ft_gravity_compensated.header.stamp-m_t_start).toSec()/(60.0*60.0);
-    X(1) = 1.0;
+    X(0, 0) = (ft_gravity_compensated.header.stamp-m_t_start).toSec()/(60.0*60.0);
+    X(0, 1) = 1.0;
 
     double Y;
     Eigen::Vector2d beta = m_params->getCoefficients();

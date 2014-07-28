@@ -1,4 +1,4 @@
 coefficients: [-1.7766, 5.3074]
-calib_num_samples: 30000
+calib_num_samples: 300
 calib_sampling_freq: 1.0
 publish_rate: 650.0
