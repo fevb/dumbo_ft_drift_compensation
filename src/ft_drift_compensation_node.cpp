@@ -111,9 +111,11 @@ public:
 
         int calib_num_samples;
         n_.param<int>("calib_num_samples", calib_num_samples, 300);
+        m_params->setCalibNumSamples(calib_num_samples);
 
         double calib_sampling_freq;
         n_.param<double>("calib_sampling_freq", calib_sampling_freq, 2.0);
+        m_params->setCalibSamplingFreq(calib_sampling_freq);
 
         n_.param<double>("publish_rate", m_publish_rate, 650.0);
 
@@ -159,6 +161,9 @@ public:
             m_calibrating = false;
             return;
         }
+
+        m_calibrating = false;
+        return;
     }
 
     void topicCallback_ft_compensated(const geometry_msgs::WrenchStamped::ConstPtr &msg)
@@ -195,7 +200,7 @@ public:
     }
 
 
-protected:
+private:
 
     FTDriftCompensationParams *m_params;
     FTDriftCompensation *m_ft_drift_compensation;
