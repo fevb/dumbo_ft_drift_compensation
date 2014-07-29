@@ -35,11 +35,11 @@
 
 #include <dumbo_ft_drift_compensation/ft_drift_compensation.h>
 #include <eigen3/Eigen/Dense>
+#include <eigen_conversions/eigen_msg.h>
 
 FTDriftCompensation::FTDriftCompensation(FTDriftCompensationParams *params)
 {
     m_params = params;
-    m_t_start = ros::Time::now();
 }
 
 FTDriftCompensation::~FTDriftCompensation()
@@ -47,42 +47,63 @@ FTDriftCompensation::~FTDriftCompensation()
 
 }
 
-Eigen::Vector2d FTDriftCompensation::calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_gravity_compensated_measurements)
+bool FTDriftCompensation::calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_measurements,
+                                    const std::vector<sensor_msgs::Imu> &imu_filtered_measurements,
+                                    Eigen::Matrix<double, 2, 6> &beta)
 {
-    unsigned int N = ft_gravity_compensated_measurements.size();
-    Eigen::MatrixXd X(N, 2);
-    Eigen::MatrixXd Y(N, 1);
-    Eigen::Vector2d beta;
+    if(ft_measurements.size()!=imu_filtered_measurements.size())
+    {
+        ROS_ERROR("Number of FT measurements != number of IMU measurements, cannot perform calibration");
+        return false;
+    }
 
+    unsigned int N = ft_measurements.size();
+
+    Eigen::MatrixXd X(N, 2);
+    Eigen::MatrixXd Y(N, 6);
+
+    // get coefficients for compensating Fz
     for(unsigned int i = 0; i < N; i++)
     {
-        X(i, 0) = ((ft_gravity_compensated_measurements[i].header.stamp - m_t_start).toSec())/(60.0*60.0);
+        X(i, 0) = imu_filtered_measurements[i].linear_acceleration.x;
         X(i, 1) = 1.0;
-        Y(i, 0) = ft_gravity_compensated_measurements[i].wrench.force.z;
+
+        Eigen::Matrix<double, 6, 1> w;
+        tf::wrenchMsgToEigen(ft_measurements[i].wrench, w);
+        Y.row(i) = w.transpose();
     }
 
     Eigen::MatrixXd H = X.transpose()*X;
 
-    beta = H.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(X.transpose()*Y);
+    for(unsigned int i = 0; i < 6; i++)
+    {
+        beta.col(i) = H.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(X.transpose()*Y.col(i));
+    }
 
-    return beta;
+    return true;
 }
 
-void FTDriftCompensation::compensate(const geometry_msgs::WrenchStamped &ft_gravity_compensated,
+void FTDriftCompensation::compensate(const geometry_msgs::WrenchStamped &ft,
+                                     const sensor_msgs::Imu &imu_filtered,
                                      geometry_msgs::WrenchStamped &ft_drift_compensated)
 {
-    ft_drift_compensated = ft_gravity_compensated;
+    ft_drift_compensated = ft;
 
     Eigen::Matrix<double, 1, 2> X;
-    X(0, 0) = (ft_gravity_compensated.header.stamp-m_t_start).toSec()/(60.0*60.0);
+    X(0, 0) = imu_filtered.linear_acceleration.x;
     X(0, 1) = 1.0;
 
-    double Y;
-    Eigen::Vector2d beta = m_params->getCoefficients();
+    Eigen::Matrix<double, 1, 6> Y;
+    Eigen::Matrix<double, 2, 6> beta = m_params->getCoefficients();
 
     Y = X*beta;
 
-    ft_drift_compensated.wrench.force.z = ft_gravity_compensated.wrench.force.z-Y;
+    Eigen::Matrix<double, 6, 1> w, w_drift_compensated;
+    tf::wrenchMsgToEigen(ft.wrench, w);
+
+    w_drift_compensated = w - Y.transpose();
+
+    tf::wrenchEigenToMsg(w_drift_compensated, ft_drift_compensated.wrench);
 }
 
 

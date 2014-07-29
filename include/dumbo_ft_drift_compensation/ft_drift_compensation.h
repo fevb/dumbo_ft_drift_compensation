@@ -39,6 +39,7 @@
 #include <ros/ros.h>
 #include <geometry_msgs/WrenchStamped.h>
 #include <dumbo_ft_drift_compensation/ft_drift_compensation_params.h>
+#include <sensor_msgs/Imu.h>
 
 
 class FTDriftCompensation
@@ -49,16 +50,22 @@ public:
     virtual ~FTDriftCompensation();
 
     // calculates the coefficients for linear time drift compensation
-    // of Fz given a set of force-torque measurements using least-squares
-    Eigen::Vector2d calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_gravity_compensated_measurements);
+    // of Fz given a set of force-torque and low-pass filtered accelerometer measurements
+    // using least-squares.
+    // coefficients are returned in beta; each column corresponds to each component
+    // of the force-torque measurements [Fx Fy Fz Tx Ty Tz]
+    // returns false if the number of measurements
+    bool calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_measurements,
+                   const std::vector<sensor_msgs::Imu> &imu_filtered_measurements,
+                   Eigen::Matrix<double, 2, 6> &beta);
 
     // compensates for linear time drift (valid during 1st hour of sensor operation)
-    void compensate(const geometry_msgs::WrenchStamped &ft_gravity_compensated,
+    void compensate(const geometry_msgs::WrenchStamped &ft,
+                    const sensor_msgs::Imu &imu_filtered,
                     geometry_msgs::WrenchStamped &ft_drift_compensated);
 
 private:
     FTDriftCompensationParams *m_params;
-    ros::Time m_t_start;
 };
 
 
