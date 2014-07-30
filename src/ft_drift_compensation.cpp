@@ -62,7 +62,6 @@ bool FTDriftCompensation::calibrate(const std::vector<geometry_msgs::WrenchStamp
     Eigen::MatrixXd X(N, 2);
     Eigen::MatrixXd Y(N, 6);
 
-    // get coefficients for compensating Fz
     for(unsigned int i = 0; i < N; i++)
     {
         X(i, 0) = imu_filtered_measurements[i].linear_acceleration.x;
@@ -75,9 +74,20 @@ bool FTDriftCompensation::calibrate(const std::vector<geometry_msgs::WrenchStamp
 
     Eigen::MatrixXd H = X.transpose()*X;
 
+    beta = Eigen::Matrix<double, 2, 6>::Zero();
+
+    // only Fz and Tz are correlated with accelerometer signal, for the rest of the FT signals
+    // just calibrate the bias
     for(unsigned int i = 0; i < 6; i++)
     {
-        beta.col(i) = H.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(X.transpose()*Y.col(i));
+        if(i==2 || i==5)
+        {
+            beta.col(i) = H.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(X.transpose()*Y.col(i));
+        }
+        else
+        {
+            beta(1, i) = Y.col(i).sum()/N;
+        }
     }
 
     return true;
