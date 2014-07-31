@@ -41,7 +41,7 @@
 #include <dumbo_ft_drift_compensation/ft_drift_compensation.h>
 #include <dumbo_ft_drift_compensation/ft_drift_compensation_params.h>
 #include <boost/thread.hpp>
-#include <fir_filter/filt.h>
+#include <iir_filter/iir_filter.h>
 #include <eigen_conversions/eigen_msg.h>
 
 
@@ -73,12 +73,25 @@ public:
                                                         this);
 
         m_calibrating = false;
+        Eigen::Matrix<double, 1, 5> B;
+        Eigen::Matrix<double, 1, 5> A;
+
+        B <<    0.000000058451424256311668159,
+                0.00000023380569702524667264,
+                0.00000035070854553787000896,
+                0.00000023380569702524667264,
+                0.000000058451424256311668159;
+
+        A <<    1.0,
+                -3.9179078653919887643,
+                5.7570763791180707969,
+                -3.7603495076945310238,
+                0.92118192919123753626;
 
         m_imu_lpf.resize(3);
         for(unsigned int i = 0; i < m_imu_lpf.size(); i++)
         {
-            m_imu_lpf[i] = new Filter(LPF, 4, 250.0, 2.5);
-            m_imu_lpf[i]->init();
+            m_imu_lpf[i] = new IIRFilter(B, A);
         }
 
         boost::thread imu_filtering_thread(boost::bind(&FTDriftCompensationNode::filterImu,
@@ -253,7 +266,7 @@ public:
                     tf::vectorMsgToEigen(m_imu.linear_acceleration, acc);
 
                     for(unsigned int i = 0; i < 3; i++)
-                        acc_filtered(i) = m_imu_lpf[i]->do_sample(acc(i));
+                        acc_filtered(i) = m_imu_lpf[i]->filter(acc(i));
 
                     tf::vectorEigenToMsg(acc_filtered, m_imu_filtered.linear_acceleration);
 
@@ -286,7 +299,7 @@ private:
     sensor_msgs::Imu m_imu_filtered;
     boost::mutex m_imu_mutex;
 
-    std::vector<Filter*> m_imu_lpf;
+    std::vector<IIRFilter *> m_imu_lpf;
 
     bool m_calibrating;
 
