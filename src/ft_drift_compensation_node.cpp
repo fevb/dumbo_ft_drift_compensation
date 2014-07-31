@@ -255,6 +255,7 @@ public:
     {
         try
         {
+            ros::Rate loop_rate(250.0);
             while(n_.ok())
             {
                 try
@@ -276,6 +277,8 @@ public:
                 {
                     return;
                 }
+
+                loop_rate.sleep();
             }
         }
 
