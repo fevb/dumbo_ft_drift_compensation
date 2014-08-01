@@ -1,4 +1,5 @@
-coefficients: [-1.7766, 5.3074]
-calib_num_samples: 60000
-calib_sampling_freq: 30.0
+calib_num_samples: 4000
+calib_sampling_freq: 15.0
 publish_rate: 650.0
+moveit_group_name: 'left_arm'
+number_calib_poses: 20

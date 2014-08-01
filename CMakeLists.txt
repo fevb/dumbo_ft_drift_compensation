@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(dumbo_ft_drift_compensation)
 
-find_package(catkin REQUIRED COMPONENTS roscpp geometry_msgs sensor_msgs iir_filter std_srvs eigen_conversions)
+find_package(catkin REQUIRED COMPONENTS roscpp geometry_msgs sensor_msgs iir_filter std_srvs eigen_conversions moveit_core moveit_ros_planning moveit_ros_planning_interface)
 find_package(Eigen REQUIRED)
 
 find_package(Boost REQUIRED COMPONENTS thread)
 
 catkin_package(
   DEPENDS eigen
-  CATKIN_DEPENDS roscpp geometry_msgs sensor_msgs iir_filter std_srvs eigen_conversions
+  CATKIN_DEPENDS roscpp geometry_msgs sensor_msgs iir_filter std_srvs eigen_conversions moveit_core moveit_ros_planning moveit_ros_planning_interface
   INCLUDE_DIRS include 
   LIBRARIES 
 )

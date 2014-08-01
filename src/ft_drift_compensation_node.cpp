@@ -43,6 +43,7 @@
 #include <boost/thread.hpp>
 #include <iir_filter/iir_filter.h>
 #include <eigen_conversions/eigen_msg.h>
+#include <moveit/move_group_interface/move_group.h>
 
 
 class FTDriftCompensationNode
@@ -58,6 +59,7 @@ public:
     FTDriftCompensationNode()
     {
         n_ = ros::NodeHandle("~");
+
         m_params  = new FTDriftCompensationParams();
         m_ft_drift_compensation = new FTDriftCompensation(m_params);
 
@@ -120,6 +122,23 @@ public:
 
         n_.param<double>("publish_rate", m_publish_rate, 650.0);
 
+        if(!n_.hasParam("moveit_group_name"))
+        {
+            ROS_WARN("moveit_group_name parameter is not available...");
+            return false;
+        }
+
+        else
+        {
+            n_.getParam("moveit_group_name", m_moveit_group_name);
+        }
+
+
+        int number_calib_poses;
+        n_.param<int>("number_calib_poses", number_calib_poses, 5);
+
+        m_number_calib_poses = (unsigned int) number_calib_poses;
+
         return true;
     }
 
@@ -133,20 +152,45 @@ public:
     {
         try
         {
+            ros::AsyncSpinner spinner(1);
+            spinner.start();
+
+            moveit::planning_interface::MoveGroup group(m_moveit_group_name);
+
             ROS_INFO("Starting FT sensor drift calibration, it will take %f minutes. DO NOT MOVE THE ROBOT!!!",
                      m_params->getCalibNumSamples()/(m_params->getCalibSamplingFreq()*60.0));
+
             unsigned int i = 0;
             ros::Rate loop_rate(m_params->getCalibSamplingFreq());
             std::vector<geometry_msgs::WrenchStamped> ft_measurements;
             std::vector<sensor_msgs::Imu> imu_filtered_measurements;
 
-            ft_measurements.resize(m_params->getCalibNumSamples());
-            imu_filtered_measurements.resize(m_params->getCalibNumSamples());
+            unsigned int N = m_params->getCalibNumSamples();
+            ft_measurements.resize(N);
+            imu_filtered_measurements.resize(N);
 
-            while(n_.ok() && i < m_params->getCalibNumSamples())
+            unsigned int n_pose = 1;
+
+            while(n_.ok() && i < N)
             {
                 try
                 {
+                    // move the arm
+                    if(i >= (N*n_pose)/m_number_calib_poses)
+                    {
+                        group.setRandomTarget();
+                        group.move();
+                        n_pose++;
+
+                        // wait for a bit before continuing to take measurements
+                        ros::Time t = ros::Time::now();
+                        while(((ros::Time::now()-t).toSec() < 5.0) && n_.ok())
+                        {
+                            ros::spinOnce();
+                            loop_rate.sleep();
+                        }
+                    }
+
                     ft_measurements[i] = m_ft;
 
                     m_imu_mutex.lock();
@@ -238,7 +282,7 @@ public:
                 topicPub_ft_drift_compensated_.publish(ft_drift_compensated);
             }
 
-            else if(m_calibrating)
+            if(m_calibrating)
             {
                 boost::thread calibration_thread(boost::bind(&FTDriftCompensationNode::calibrate, this));
                 calibration_thread.join();
@@ -308,10 +352,14 @@ private:
 
     double m_publish_rate;
 
+    std::string m_moveit_group_name;
+    unsigned int m_number_calib_poses;
+
 };
 
 int main(int argc, char **argv)
 {
+
     ros::init(argc, argv, "dumbo_ft_drift_compensation");
     FTDriftCompensationNode ft_drift_compensation_node;
 
