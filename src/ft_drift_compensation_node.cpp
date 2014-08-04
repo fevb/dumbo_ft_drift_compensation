@@ -50,7 +50,7 @@ class FTDriftCompensationNode
 public:
     ros::NodeHandle n_;
     ros::Subscriber topicSub_ft_;
-    ros::Subscriber topicSub_imu;
+    ros::Subscriber topicSub_imu_;
     ros::Publisher topicPub_ft_drift_compensated_;
 
     ros::ServiceServer calibrate_service_server_;
@@ -65,7 +65,7 @@ public:
         m_imu.header.stamp = ros::Time::now() - ros::Duration(3.0);
 
         topicSub_ft_ = n_.subscribe("ft", 1, &FTDriftCompensationNode::topicCallback_ft, this);
-        topicSub_imu = n_.subscribe("imu", 1, &FTDriftCompensationNode::topicCallback_imu, this);
+        topicSub_imu_ = n_.subscribe("imu", 1, &FTDriftCompensationNode::topicCallback_imu, this);
         topicPub_ft_drift_compensated_ = n_.advertise<geometry_msgs::WrenchStamped>("ft_drift_compensated", 1);
 
         calibrate_service_server_ = n_.advertiseService("calibrate",
