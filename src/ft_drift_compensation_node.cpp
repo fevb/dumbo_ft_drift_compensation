@@ -119,7 +119,9 @@ public:
 
             while(ros::ok() && i < m_params->getCalibNumSamples())
             {
+                m_ft_mutex.lock();
                 ft_measurements[i] = m_ft;
+                m_ft_mutex.unlock();
                 i++;
                 loop_rate.sleep();
             }
