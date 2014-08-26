@@ -47,12 +47,12 @@ FTDriftCompensationParams::~FTDriftCompensationParams()
 
 }
 
-void FTDriftCompensationParams::setCoefficients(const Eigen::Matrix<double, 2, 6> &beta)
+void FTDriftCompensationParams::setCoefficients(const Eigen::Matrix<double, 6, 1> &beta)
 {
     m_beta = beta;
 }
 
-Eigen::Matrix<double, 2, 6> FTDriftCompensationParams::getCoefficients()
+Eigen::Matrix<double, 6, 1> FTDriftCompensationParams::getCoefficients()
 {
     return m_beta;
 }

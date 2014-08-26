@@ -48,35 +48,23 @@ FTDriftCompensation::~FTDriftCompensation()
 
 }
 
-Eigen::Matrix<double, 2, 6> FTDriftCompensation::calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_measurements)
+Eigen::Matrix<double, 6, 1> FTDriftCompensation::calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_measurements)
 {
     unsigned int N = ft_measurements.size();
-    Eigen::MatrixXd X(N, 2);
-    Eigen::MatrixXd Y(N, 6);
-    Eigen::Matrix<double, 2, 6> beta = Eigen::Matrix<double, 2, 6>::Zero();
+    Eigen::MatrixXd Y(6, N);
+    Eigen::Matrix<double, 6, 1> beta = Eigen::Matrix<double, 6, 1>::Zero();
 
     for(unsigned int i = 0; i < N; i++)
     {
-        X(i, 0) = ((ft_measurements[i].header.stamp - m_t_start).toSec())/(60.0*60.0);
-        X(i, 1) = 1.0;
-
         Eigen::Matrix<double, 6, 1> w;
         tf::wrenchMsgToEigen(ft_measurements[i].wrench, w);
-        Y.row(i) = w.transpose();
+        Y.col(i) = w;
     }
 
-    Eigen::MatrixXd H = X.transpose()*X;
 
     for(unsigned int i = 0; i < 6; i++)
     {
-        if(i==2 || i==5)
-        {
-            beta.col(i) = H.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(X.transpose()*Y.col(i));
-        }
-        else
-        {
-            beta(1, i) = Y.col(i).sum()/N;
-        }
+        beta(i, 0) = Y.row(i).sum()/N;
     }
 
     return beta;
@@ -87,19 +75,12 @@ void FTDriftCompensation::compensate(const geometry_msgs::WrenchStamped &ft,
 {
     ft_drift_compensated = ft;
 
-    Eigen::Matrix<double, 1, 2> X;
-    X(0, 0) = (ft.header.stamp-m_t_start).toSec()/(60.0*60.0);
-    X(0, 1) = 1.0;
-
-    Eigen::Matrix<double, 1, 6> Y;
-    Eigen::Matrix<double, 2, 6> beta = m_params->getCoefficients();
-
-    Y = X*beta;
+    Eigen::Matrix<double, 6, 1> bias = m_params->getCoefficients();
 
     Eigen::Matrix<double, 6, 1> w, w_drift_compensated;
     tf::wrenchMsgToEigen(ft.wrench, w);
 
-    w_drift_compensated = w - Y.transpose();
+    w_drift_compensated = w - bias;
 
     tf::wrenchEigenToMsg(w_drift_compensated, ft_drift_compensated.wrench);
 }

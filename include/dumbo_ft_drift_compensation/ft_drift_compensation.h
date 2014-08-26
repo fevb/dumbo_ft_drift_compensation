@@ -50,7 +50,7 @@ public:
 
     // calculates the coefficients for linear time drift compensation
     // of Fz given a set of force-torque measurements using least-squares
-    Eigen::Matrix<double, 2, 6> calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_measurements);
+    Eigen::Matrix<double, 6, 1> calibrate(const std::vector<geometry_msgs::WrenchStamped> &ft_measurements);
 
     // compensates for linear time drift (valid during 1st hour of sensor operation)
     void compensate(const geometry_msgs::WrenchStamped &ft,

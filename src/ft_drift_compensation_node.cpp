@@ -126,7 +126,7 @@ public:
                 loop_rate.sleep();
             }
 
-            Eigen::Matrix<double, 2, 6> beta = m_ft_drift_compensation->calibrate(ft_measurements);
+            Eigen::Matrix<double, 6, 1> beta = m_ft_drift_compensation->calibrate(ft_measurements);
             m_params->setCoefficients(beta);
 
             m_calibrating = false;
