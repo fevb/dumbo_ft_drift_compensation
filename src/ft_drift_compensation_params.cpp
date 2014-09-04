@@ -39,7 +39,7 @@
 
 FTDriftCompensationParams::FTDriftCompensationParams()
 {
-
+  m_beta = Eigen::Matrix<double, 6, 1>::Zero();
 }
 
 FTDriftCompensationParams::~FTDriftCompensationParams()
